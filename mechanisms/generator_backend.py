@@ -11,8 +11,9 @@ def load_model(version, socketio):
         MODEL = HijackedMusicGen.get_pretrained(socketio, version)
     except Exception as e:
         print(f"Failed to load model due to error: {e}, you probably need to pick a smaller model.")
-        torch.cuda.empty_cache()
-        torch.cuda.synchronize()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
         return None
     return MODEL
 

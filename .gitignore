@@ -2,4 +2,5 @@
 /static/temp/
 /settings
 venv/
+.venv/
 __pycache__

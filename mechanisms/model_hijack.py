@@ -18,7 +18,9 @@ class HijackedMusicGen(MusicGen):
             self._last_update_time = current_time
         
     @staticmethod
-    def get_pretrained(socketio, name: str = 'melody', device='cuda'):
+    def get_pretrained(socketio, name: str = 'melody', device=None):
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
         patched_name = f"facebook/musicgen-{name}"
         music_gen = MusicGen.get_pretrained(patched_name, device)
         return HijackedMusicGen(socketio, music_gen.name, music_gen.compression_model, music_gen.lm)
