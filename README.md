@@ -34,6 +34,16 @@ To automate installation and environment setup, use the provided script:
   ```
 This will check for **Python 3.10**, create a virtual environment (`venv`), and install all required dependencies automatically. If Conda is available, it can be used instead of venv.
 
+> **Python 3.10 not available on your system?** On recent Ubuntu/Debian releases (e.g. Ubuntu 24.04), Python 3.10 is no longer in the default repositories. Install it via the [deadsnakes PPA](https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa):
+> ```bash
+> sudo add-apt-repository ppa:deadsnakes/ppa
+> sudo apt update
+> sudo apt install -y python3.10 python3.10-venv python3.10-dev
+> ```
+
+### CPU-only / no GPU
+A GPU is not required. If no CUDA-capable GPU is detected, the app automatically falls back to running on the CPU — generation will just be significantly slower.
+
 ---
 
 ## Run:
@@ -103,10 +113,22 @@ If you want to use **Melody Mode**, select the **Melody model**, and an option t
   ```bash
   chmod +x install.sh run.sh
   ```
+- **`transformers` disables PyTorch / text conditioning fails:**
+  Recent versions of `transformers` require `torch>=2.5`, but `audiocraft` pins `torch==2.1.0`. If you see `[transformers] Disabling PyTorch because PyTorch >= 2.5 is required but found 2.1.0`, pin a compatible version:
+  ```bash
+  pip install "transformers==4.44.2"
+  ```
+- **`RuntimeError: The Werkzeug web server is not designed to run in production`:**
+  Newer versions of `flask-socketio` refuse to start the dev server without an explicit opt-in. This is already handled in `webui.py` (`allow_unsafe_werkzeug=True`); if you still hit it, make sure you're running the latest `webui.py`.
 
 ---
 
 ## Changelog:
+
+### Oct-06-2026:
+- Fixed crash on systems without a CUDA GPU (now falls back to CPU automatically).
+- Fixed compatibility with newer `flask-socketio` versions (dev server would refuse to start).
+- Documented the `transformers`/`torch` version conflict and Python 3.10 install via deadsnakes PPA.
 
 ### Feb-25-2024:
 - Rewrote everything.
