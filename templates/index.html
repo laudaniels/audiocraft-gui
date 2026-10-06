@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Music Gen Webui 2.0</title>
 
 <link rel="stylesheet" href="{{ url_for('static', filename='main-style.css') }}">
@@ -10,111 +11,75 @@
 </head>
 
 <body>
-    {% macro slider_field(id, name, min_value, max_value, step_value, data) %}
+    {% macro slider_field(id, name, min_value, max_value, step_value, data, tooltip='') %}
     <div class="field">
-        <label for="{{ name }}">{{ name }}</label>
-        <input type="range" id="{{ id }}" name="{{ name }}" min="{{ min_value }}" max="{{ max_value }}" step="{{ step_value }}" value="{{ data }}" oninput="updateSliderValue('{{ id }}', this.value)">
-        <input type="text" id="{{ id }}-text" value="{{ data }}" class="slider-value" oninput="updateRangeValue('{{ id }}', this.value)">
+        <label for="{{ id }}">
+            {{ name }}
+            {% if tooltip %}
+            <span class="info-icon" tabindex="0">
+                i
+                <span class="tooltip-bubble">{{ tooltip }}</span>
+            </span>
+            {% endif %}
+        </label>
+        <div class="slider-row">
+            <input type="range" id="{{ id }}" name="{{ name }}" min="{{ min_value }}" max="{{ max_value }}" step="{{ step_value }}" value="{{ data }}" oninput="updateSliderValue('{{ id }}', this.value)">
+            <input type="text" id="{{ id }}-text" value="{{ data }}" class="slider-value" oninput="updateRangeValue('{{ id }}', this.value)">
+        </div>
     </div>
-    <script>
-        function updateSliderValue(sliderName, value) {
-            document.getElementById(sliderName + '-text').value = value;
-            socket.emit('slider_change', {sliderName: sliderName, value: value});
-        }
-
-        function updateRangeValue(sliderName, value) {
-            var rangeInput = document.getElementById(sliderName);
-            var newValue = parseFloat(value);
-            if (!isNaN(newValue) && newValue >= parseFloat(rangeInput.min) && newValue <= parseFloat(rangeInput.max)) {
-                rangeInput.value = newValue;
-                socket.emit('slider_change', {sliderName: sliderName, value: newValue});
-            }
-        }
-    </script>
     {% endmacro %}
-    <div class="container"></div>
-        <div class="third-box">
 
-            <select id="modelSelector" class="model-selector">
-                {% set model_options = ["small", "medium", "large", "melody"] %}
-                {% for option in model_options %}
-                    <option value="{{ option }}" {% if option == default_model %}selected{% endif %}>{{ option.capitalize() }}</option>
-                {% endfor %}
-            </select>            
+    <div class="app-layout">
+        <section class="panel settings-panel third-box">
+            <h2 class="panel-title">Generate</h2>
+
+            <div class="field">
+                <label for="modelSelector">Model</label>
+                <select id="modelSelector" class="model-selector">
+                    {% set model_options = ["small", "medium", "large", "melody"] %}
+                    {% for option in model_options %}
+                        <option value="{{ option }}" {% if option == default_model %}selected{% endif %}>{{ option.capitalize() }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
             <div id="melody-field" class="field">
-                <input type="file" id="melody" name="melody" accept="audio/*">
+                <label>Melody reference</label>
+                <div id="melody-dropzone" class="dropzone">
+                    <input type="file" id="melody" name="melody" accept="audio/*" class="dropzone-input">
+                    <div class="dropzone-content">
+                        <span class="dropzone-icon">&#127925;</span>
+                        <span class="dropzone-text">Drag &amp; drop an audio file here, or click to browse</span>
+                        <span class="dropzone-filename" id="melody-filename"></span>
+                    </div>
+                </div>
                 <audio id="audio-preview" controls></audio>
             </div>
 
-            <script>
-                document.getElementById('melody').addEventListener('change', async function(event) {
-                    var files = event.target.files;
-                    if (files.length === 0) {
-                        audioElement.src = "";
-                        return;
-                    }
-                    var file = files[0];
-                    if (file.type.startsWith('audio/')) {
-                        var formData = new FormData();
-                        formData.append('melody', file);
-                    }
-                    try {
-                        const response = await fetch('/upload_melody', {
-                            method: 'POST',
-                            body: formData,
-                        });
-                        const data = await response.json();
-                        var audioElement = document.getElementById('audio-preview');
-                        audioElement.src = data.filePath;
-                    } catch(error) {
-                        audioElement.src = "";
-                    }
-                });
-            </script>
-
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    var modelSelector = document.getElementById('modelSelector');
-                    var melodyField = document.getElementById('melody-field');
-                    var audioElement = document.getElementById('audio-preview');
-                    var fileInput = document.getElementById('melody');
-
-                    function updateUI() {
-                        fileInput.value = "";
-                        audioElement.src = "";
-                        if(modelSelector.value !== 'melody') {
-                            melodyField.style.display = 'none';
-                        } else {
-                            melodyField.style.display = 'block';
-                        }
-                    }
-                    modelSelector.addEventListener('change', updateUI);
-                    updateUI();
-                });
-            </script>
-    
             <div class="group slider-group">
-                <div>
-                    {{ slider_field('top_k', 'Top K', 0, 1000, 1, topk) }}
-                    {{ slider_field('duration', 'Duration', 1, 1000, 1, duration) }}
-                    {{ slider_field('cfg_coef', 'CFG', 1, 10, 0.1, cfg_coef) }}
-                </div>
-
-                <div>
-                    {{ slider_field('top_p', 'Top-Probability', 0, 1, 0.01, topp) }}
-                    {{ slider_field('temperature', 'Temperature', 0.1, 5, 0.01, temperature) }}
-                </div>
+                {{ slider_field('top_k', 'Top K', 0, 1000, 1, topk, 'Affects the variety of generated audio. Higher values lead to more diverse results but may increase randomness.') }}
+                {{ slider_field('top_p', 'Top-Probability', 0, 1, 0.01, topp, 'Recommended around 0.7. Controls sampling diversity, with lower values producing more stable results.') }}
+                {{ slider_field('duration', 'Duration', 1, 1000, 1, duration, 'Length of the generated audio, in seconds.') }}
+                {{ slider_field('cfg_coef', 'CFG', 1, 10, 0.1, cfg_coef, 'Classifier Free Guidance: determines how strictly the output follows the prompt (recommended 3-5).') }}
+                {{ slider_field('temperature', 'Temperature', 0.1, 5, 0.01, temperature, 'Controls randomness. Higher values (1.05-1.5) create more chaotic results, while lower values yield more structured outputs.') }}
             </div>
 
             <div class="submit-container">
-                <textarea id="text" name="text" rows="3" required="">{{ default_text }}</textarea>
-                <button type="button" class="submit-button" onclick="submitSliders()">Submit</button>
+                <div id="prompt-hint" class="prompt-hint"></div>
+                <textarea id="text" name="text" rows="3">{{ default_text }}</textarea>
+                <button type="button" class="submit-button" onclick="submitSliders()">Generate</button>
             </div>
-        </div>
+        </section>
 
-        <div class="prompt-queue third-box"></div>
-        <div class="audio-list third-box"></div>   
+        <section class="panel queue-panel third-box">
+            <h2 class="panel-title">Queue</h2>
+            <div class="prompt-queue"></div>
+        </section>
+
+        <section class="panel history-panel third-box">
+            <h2 class="panel-title">History</h2>
+            <div class="audio-list"></div>
+        </section>
     </div>
 
     <script src="{{ url_for('static', filename='main.js') }}"></script>

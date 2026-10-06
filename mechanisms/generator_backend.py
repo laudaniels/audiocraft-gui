@@ -63,18 +63,21 @@ def write_audio(model_type, prompt, audio, audio_gen_params):
 def generate_audio(socketio, model_type, prompt, audio_gen_params, melody_data):
     global MODEL
     if not MODEL or MODEL.name != f"facebook/musicgen-{model_type}":
+        socketio.emit('status', {'phase': 'loading_model'})
         load_model(model_type, socketio)
     if not MODEL:
         print("Couldn't load model.")
+        socketio.emit('status', {'phase': 'failed'})
         return
-    
+
     MODEL.set_generation_params(
         use_sampling=True,
         **audio_gen_params,
     )
-    
+
     if melody_data is not None:
         melody, melody_sr = melody_data
+        socketio.emit('status', {'phase': 'processing_melody'})
         output = MODEL.generate_with_chroma(
             descriptions=[prompt],
             melody_wavs=melody,
@@ -82,6 +85,7 @@ def generate_audio(socketio, model_type, prompt, audio_gen_params, melody_data):
             progress=True
         )
     else:
+        socketio.emit('status', {'phase': 'generating'})
         output = MODEL.generate(descriptions=[prompt], progress=True)
-    
+
     return write_audio(model_type, prompt, output, audio_gen_params)
